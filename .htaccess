@@ -1,0 +1,21 @@
+# Enable URL rewriting
+RewriteEngine On
+
+# Make sure the requested resource isn't an actual file or directory
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Redirect all non-file/non-dir requests to index.php (or go.php)
+RewriteRule ^([A-Za-z0-9_-]+)/?$ index.php?short=$1 [L,QSA]
+
+# Block direct access to SQLite files
+<FilesMatch "\.sqlite$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Also block backups or temp SQLite files
+<FilesMatch "\.(sqlite|sqlite3|db|db3|sql|bak|tmp)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
