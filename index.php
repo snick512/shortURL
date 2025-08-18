@@ -1,24 +1,19 @@
 <?php
-// index.php — Secure redirect + tracker
+// go.php â€” Redirects / tracks visits for a short link, e.g. go.php?short=exampleshort
 
 // ==== CONFIG ==== //
-$jsonFile = __DIR__ . '/urls.json';   // Shortlinks JSON
-$dbFile   = __DIR__ . '/visits.sqlite';
-$geoURL   = 'http://ip-api.com/json/'; 
+$jsonFile = __DIR__ . '/urls.json';            // Your shortlinks JSON (same used by url.php)
+$dbFile   = __DIR__ . '/visits.sqlite';        // SQLite DB path
+$geoURL   = 'http://ip-api.com/json/';         // Free geolocation endpoint (rate-limited)
+// Optional: limit network call time
 $geoTimeoutSeconds = 2;
 // ================= //
 
-// Security headers
-header('X-Content-Type-Options: nosniff');
-header('X-Frame-Options: DENY');
-header('Referrer-Policy: no-referrer-when-downgrade');
-header('X-XSS-Protection: 1; mode=block');
-
-// Get short parameter, sanitize
+// Get short
 $short = isset($_GET['short']) ? trim($_GET['short']) : '';
-if ($short === '' || !preg_match('/^[A-Za-z0-9_-]+$/', $short)) {
+if ($short === '') {
     http_response_code(400);
-    echo "Invalid short parameter.";
+    echo "Missing short parameter.";
     exit;
 }
 
@@ -36,22 +31,15 @@ if (!is_array($data) || !isset($data[$short]['url'])) {
 }
 $targetUrl = $data[$short]['url'];
 
-// Validate target URL
-if (!preg_match('#^https?://#i', $targetUrl)) {
-    http_response_code(400);
-    echo "Invalid target URL.";
-    exit;
-}
-
 // Collect request info
 $ip       = getClientIp();
-$ua       = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500); // prevent oversized UA strings
-$referrer = substr($_SERVER['HTTP_REFERER'] ?? '', 0, 500);
+$ua       = $_SERVER['HTTP_USER_AGENT'] ?? '';
+$referrer = $_SERVER['HTTP_REFERER'] ?? '';
 $ts       = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s');
 
 [$country, $region, $city, $lat, $lon] = geoLookup($ip, $geoURL, $geoTimeoutSeconds);
 
-// Save visit
+// Ensure DB / table
 try {
     $pdo = new PDO('sqlite:' . $dbFile);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -72,6 +60,7 @@ try {
             ts TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_visits_short_ts ON visits(short, ts);
+        CREATE INDEX IF NOT EXISTS idx_visits_country ON visits(country);
     ");
 
     $stmt = $pdo->prepare("
@@ -92,17 +81,18 @@ try {
         ':ts'       => $ts,
     ]);
 } catch (Throwable $e) {
-    // Fail silently but don’t block redirect
+    // Logging failures shouldn't block the redirect; you could log $e->getMessage() to a file if you want.
 }
 
-// Redirect safely
+// Redirect
 header("Location: $targetUrl", true, 302);
 exit;
 
-// --------- Helpers --------- //
+// ------------- Helpers ------------- //
 function getClientIp(): string {
+    // X-Forwarded-For support (first IP)
     $headers = [
-        'HTTP_CF_CONNECTING_IP',
+        'HTTP_CF_CONNECTING_IP',       // Cloudflare
         'HTTP_X_FORWARDED_FOR',
         'HTTP_X_REAL_IP',
         'REMOTE_ADDR'
@@ -121,9 +111,13 @@ function getClientIp(): string {
 }
 
 function geoLookup(string $ip, string $endpoint, int $timeout = 2): array {
-    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+    // Skip private / local IPs
+    if (
+        filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false
+    ) {
         return [null, null, null, null, null];
     }
+
     $ctx = stream_context_create(['http' => ['timeout' => $timeout]]);
     try {
         $resp = @file_get_contents($endpoint . urlencode($ip), false, $ctx);
@@ -131,14 +125,15 @@ function geoLookup(string $ip, string $endpoint, int $timeout = 2): array {
             $j = json_decode($resp, true);
             if (isset($j['status']) && $j['status'] === 'success') {
                 return [
-                    $j['country'] ?? null,
+                    $j['country']  ?? null,
                     $j['regionName'] ?? null,
-                    $j['city'] ?? null,
+                    $j['city']     ?? null,
                     isset($j['lat']) ? floatval($j['lat']) : null,
                     isset($j['lon']) ? floatval($j['lon']) : null,
                 ];
             }
         }
     } catch (Throwable $e) { /* ignore */ }
+
     return [null, null, null, null, null];
 }
