@@ -28,11 +28,11 @@ while true; do
     echo "$RESPONSE" | jq -r '.topCountries[] | "  \(.country): \(.c)"'
     echo
 
-    # Recent Visits
+    # Recent Visits (with City)
     echo "Recent Visits:"
-    echo "$RESPONSE" | jq -r '.recent[] | "  [\(.ts)] \(.short) from \(.country) (\(.ip))"'
+    echo "$RESPONSE" | jq -r '.recent[] | "  [\(.ts)] \(.short) from \(.city), \(.country) (\(.ip))"'
     echo
 
     # Refresh every 10s
-    sleep 300
+    sleep 10
 done
