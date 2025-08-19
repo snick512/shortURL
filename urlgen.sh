@@ -3,23 +3,30 @@
 
 # ==== CONFIGURATION ==== #
 API_KEY=""
-API_ENDPOINT="https://go.example.com/url.php"
+API_ENDPOINT="https://go.tyclifford.com/url.php"
 # ======================= #
 
-if [ $# -ne 2 ]; then
-    echo "Usage: $0 <URL> <customName>"
+if [ $# -lt 1 ] || [ $# -gt 2 ]; then
+    echo "Usage: $0 <URL> [customName]"
     exit 1
 fi
 
 URL="$1"
 SHORT="$2"
 
-# Make the API request
-response=$(curl -sG \
-    --data-urlencode "key=$API_KEY" \
-    --data-urlencode "url=$URL" \
-    --data-urlencode "short=$SHORT" \
-    "$API_ENDPOINT")
+# Build curl command dynamically
+if [ -n "$SHORT" ]; then
+    response=$(curl -sG \
+        --data-urlencode "key=$API_KEY" \
+        --data-urlencode "url=$URL" \
+        --data-urlencode "short=$SHORT" \
+        "$API_ENDPOINT")
+else
+    response=$(curl -sG \
+        --data-urlencode "key=$API_KEY" \
+        --data-urlencode "url=$URL" \
+        "$API_ENDPOINT")
+fi
 
 # Output the API's raw JSON
 echo "$response"
@@ -34,4 +41,3 @@ if [ -n "$shortLink" ]; then
 else
     echo "❌ No short link found in response."
 fi
-
