@@ -1,5 +1,5 @@
 # URL shortner
-Simple URL shortener. Places visitor data in .sqlite. URLs are stored in JSON. 
+Simple URL shortener. Data stored in .sqlite
 
 Remember to secure `dashboard.php` as it displays IPs.
 
