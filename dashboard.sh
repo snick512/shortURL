@@ -13,24 +13,24 @@ while true; do
     # Fetch JSON from API
     RESPONSE=$(curl -s "${API_URL}?key=${API_KEY}")
 
-    # Show total clicks
-    TOTAL=$(echo "$RESPONSE" | jq -r '.total')
+    # Show total clicks (default 0 if null/missing)
+    TOTAL=$(echo "$RESPONSE" | jq -r '.total // 0')
     echo "Total Clicks: $TOTAL"
     echo
 
     # Top Shorts
     echo "Top Short Links:"
-    echo "$RESPONSE" | jq -r '.topShorts[] | "  \(.short): \(.c)"'
+    echo "$RESPONSE" | jq -r '.topShorts // [] | .[] | "  \(.short): \(.c)"'
     echo
 
     # Top Countries
     echo "Top Countries:"
-    echo "$RESPONSE" | jq -r '.topCountries[] | "  \(.country): \(.c)"'
+    echo "$RESPONSE" | jq -r '.topCountries // [] | .[] | "  \(.country): \(.c)"'
     echo
 
-    # Recent Visits (with City)
+    # Recent Visits (with City, fallback if missing)
     echo "Recent Visits:"
-    echo "$RESPONSE" | jq -r '.recent[] | "  [\(.ts)] \(.short) from \(.city), \(.country) (\(.ip))"'
+    echo "$RESPONSE" | jq -r '.recent // [] | .[] | "  [\(.ts // "-")] \(.short // "-") from \(.city // "Unknown"), \(.country // "??") (\(.ip // "N/A"))"'
     echo
 
     # Refresh every 10s
