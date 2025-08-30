@@ -1,30 +1,6 @@
 <?php
 // dashboard.php — Analytics for your short links
 
-// password
-$password = "changeme"; // Change this!
-
-session_start();
-if (isset($_POST['pass'])) {
-    if ($_POST['pass'] === $password) {
-        $_SESSION['vt_logged_in'] = true;
-    } else {
-        $error = "Wrong password";
-    }
-}
-if (!($_SESSION['vt_logged_in'] ?? false)) {
-    ?>
-    <form method="post" style="margin:50px auto;max-width:300px;font-family:sans-serif;">
-        <h2>Visitor Tracker Dashboard</h2>
-        <?php if (!empty($error)) echo "<p style='color:red;'>$error</p>"; ?>
-        <input type="password" name="pass" placeholder="Password" style="width:100%;padding:8px;">
-        <button style="margin-top:10px;padding:8px;width:100%;">Login</button>
-    </form>
-    <?php
-    exit;
-}
-
-
 // ==== CONFIG ==== //
 $dbFile = __DIR__ . '/visits.sqlite';
 
